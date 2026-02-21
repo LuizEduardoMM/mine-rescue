@@ -398,29 +398,29 @@ class MineEnvironment(Environment):
                 # Agente aqui?
                 for agent in self.agents:
                     if agent.location == node:
-                        parts.append("🤖")
+                        parts.append("[R]")
 
                 # Mineradores aqui?
                 miners = [t for t in self.list_things_at(node, Miner)]
                 for m in miners:
                     if m.rescued:
-                        parts.append("✅")
+                        parts.append("[OK]")
                     elif m.alive:
-                        parts.append(f"⛑️P{m.priority}(O2={m.oxygen})")
+                        parts.append(f"[V]P{m.priority}(O2={m.oxygen})")
                     else:
-                        parts.append("💀")
+                        parts.append("[X]")
 
                 # Conexões
                 connections = []
                 for neighbor in self.adjacency.get(node, []):
                     tunnel = self.tunnels.get((node, neighbor))
                     if tunnel:
-                        status = "❌" if tunnel.collapsed else "✔"
+                        status = "[X]" if tunnel.collapsed else "-"
                         connections.append(
                             f"{neighbor[1]}({tunnel.tunnel_type[0]}{status})")
 
                 if connections:
-                    parts.append(f"  → {', '.join(connections)}")
+                    parts.append(f"  -> {', '.join(connections)}")
 
                 print(" ".join(parts))
 

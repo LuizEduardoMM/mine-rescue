@@ -1,4 +1,4 @@
-# 🏗️ Agente de Resgate em Mina Subterrânea
+# Agente de Resgate em Mina Subterrânea
 
 ## Disciplina: Inteligência Artificial
 
@@ -8,7 +8,7 @@
 
 ---
 
-## 📖 Descrição do Problema
+## Descrição do Problema
 
 Um agente robô precisa resgatar mineradores presos em diferentes pontos de uma mina subterrânea com múltiplos níveis. A mina possui:
 
@@ -20,7 +20,7 @@ Um agente robô precisa resgatar mineradores presos em diferentes pontos de uma 
 
 ---
 
-## 📐 Especificação Formal do Problema (AIMA)
+## Especificação Formal do Problema (AIMA)
 
 ### Representação dos Estados
 **Estado** = `(posição_agente, frozenset(mineradores_resgatados), bateria, step)`
@@ -68,7 +68,7 @@ Soma dos custos reais dos túneis percorridos + custos de resgate.
 
 ---
 
-## 🌍 Classificação do Ambiente (AIMA)
+## Classificação do Ambiente (AIMA)
 
 | Critério | Classificação | Justificativa |
 |----------|---------------|---------------|
@@ -80,7 +80,7 @@ Soma dos custos reais dos túneis percorridos + custos de resgate.
 
 ---
 
-## 🏛️ Arquitetura Ambiente – Agente – Programa de Agente
+## Arquitetura Ambiente – Agente – Programa de Agente
 
 ### Ambiente (`env/mine_environment.py`)
 - **Classe**: `MineEnvironment(Environment)` — herda de `agents.Environment` do aima-python
@@ -102,7 +102,7 @@ Soma dos custos reais dos túneis percorridos + custos de resgate.
 
 ---
 
-## 🔍 Algoritmos de Busca
+## Algoritmos de Busca
 
 ### Utilizados
 
@@ -126,7 +126,7 @@ Soma dos custos reais dos túneis percorridos + custos de resgate.
 
 ---
 
-## 🎯 Heurísticas
+## Heurísticas
 
 ### Heurística Principal: Distância Mínima no Grafo
 
@@ -134,21 +134,21 @@ Soma dos custos reais dos túneis percorridos + custos de resgate.
 
 **Intuição**: O agente precisa, no mínimo, percorrer a distância até o minerador mais distante não resgatado.
 
-**Admissibilidade**: ✅ Usa distâncias reais do grafo (Dijkstra). Nunca superestima porque o custo real é ≥ distância mínima.
+**Admissibilidade**: Usa distâncias reais do grafo (Dijkstra). Nunca superestima porque o custo real é >= distância mínima.
 
-**Consistência**: ✅ `h(n) ≤ c(n,a,n') + h(n')` — a distância mínima diminui em no máximo o custo da aresta percorrida.
+**Consistência**: `h(n) <= c(n,a,n') + h(n')` — a distância mínima diminui em no máximo o custo da aresta percorrida.
 
 ### Heurística MST (Variante Multi-objetivo)
 
-**Definição**: `h(n) = custo da Árvore Geradora Mínima sobre {posição_atual} ∪ {mineradores_restantes}`
+**Definição**: `h(n) = custo da Árvore Geradora Mínima sobre {posição_atual} + {mineradores_restantes}`
 
-**Admissibilidade**: ✅ MST é limite inferior do tour ótimo (TSP).
+**Admissibilidade**: MST é limite inferior do tour ótimo (TSP).
 
 **Implementação**: `MineRescueMultiProblem.h(node)` em `problems/mine_problem.py`
 
 ---
 
-## 📁 Estrutura do Projeto
+## Estrutura do Projeto
 
 ```
 mine_rescue/
@@ -171,11 +171,11 @@ mine_rescue/
 
 ---
 
-## 🚀 Instruções de Execução
+## Instruções de Execução
 
 ### 1. Clonar o repositório (com submodule)
 ```bash
-git clone --recurse-submodules https://github.com/SEU_USUARIO/mine-rescue-agent.git
+git clone --recurse-submodules https://github.com/LuizEduardoMM/mine-rescue-agent.git
 cd mine-rescue-agent
 ```
 > Se já clonou sem `--recurse-submodules`, execute:
@@ -229,7 +229,7 @@ pytest tests/test_mine_rescue.py -v
 
 ---
 
-## 🧪 Testes
+## Testes
 
 Os testes estão em `tests/test_mine_rescue.py` e cobrem:
 
@@ -241,7 +241,7 @@ Os testes estão em `tests/test_mine_rescue.py` e cobrem:
 
 ---
 
-## 📊 Mapeamento Código ↔ Especificação
+## Mapeamento Código vs Especificação
 
 | Especificação AIMA | Arquivo | Classe/Método |
 |---------------------|---------|---------------|

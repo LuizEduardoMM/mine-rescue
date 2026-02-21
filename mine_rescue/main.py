@@ -200,7 +200,7 @@ def compare_algorithms(scenario='default'):
 
     # Identificar melhor
     best = max(all_results, key=lambda r: (r['rescued'], r['performance']))
-    print(f"\n  🏆 Melhor algoritmo: {best['algorithm'].upper()}")
+    print(f"\n  Melhor algoritmo: {best['algorithm'].upper()}")
     print(f"     Resgatados: {best['rescued']} | Performance: {best['performance']}")
 
     return all_results
