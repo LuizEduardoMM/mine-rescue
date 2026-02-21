@@ -173,49 +173,58 @@ mine_rescue/
 
 ## 🚀 Instruções de Execução
 
-### Pré-requisitos
-- Python 3.7+
-- Repositório aima-python clonado no mesmo diretório pai
-- pytest (para testes)
+### 1. Clonar o repositório (com submodule)
+```bash
+git clone --recurse-submodules https://github.com/SEU_USUARIO/mine-rescue-agent.git
+cd mine-rescue-agent
+```
+> Se já clonou sem `--recurse-submodules`, execute:
+> ```bash
+> git submodule update --init
+> ```
 
-### Instalar dependências
+### 2. Instalar dependências
 ```bash
 pip install pytest numpy
 ```
 
-### Executar simulação padrão (A*)
+### 3. Executar a simulação
+
+**Simulação padrão com A\* (com render passo a passo):**
 ```bash
 cd mine_rescue
 python main.py
 ```
 
-### Executar com cenário complexo
+**Cenário complexo (mais mineradores e rotas):**
 ```bash
 python main.py --scenario complex
 ```
 
-### Executar com algoritmo específico
+**Escolher algoritmo de busca:**
 ```bash
-python main.py --algorithm ucs
-python main.py --algorithm greedy
-python main.py --algorithm bfs
+python main.py --algorithm astar    # A* (padrão)
+python main.py --algorithm ucs      # Uniform Cost Search
+python main.py --algorithm greedy   # Greedy Best-First
+python main.py --algorithm bfs      # Breadth-First Search
 ```
 
-### Comparar todos os algoritmos
+**Comparar todos os algoritmos lado a lado:**
 ```bash
 python main.py --compare
 python main.py --compare --scenario complex
 ```
 
-### Executar testes automatizados
+**Modo silencioso (sem render, só resultado final):**
+```bash
+python main.py --quiet
+python main.py --scenario complex --algorithm ucs --quiet
+```
+
+### 4. Executar os testes automatizados
 ```bash
 cd mine_rescue
 pytest tests/test_mine_rescue.py -v
-```
-
-### Modo silencioso (sem render)
-```bash
-python main.py --quiet
 ```
 
 ---
