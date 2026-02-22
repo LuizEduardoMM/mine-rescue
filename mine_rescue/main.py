@@ -1,23 +1,10 @@
-"""
-Main - Agente de Resgate em Mina Subterrânea
-=============================================
-
-Ponto de entrada principal do projeto.
-Demonstra o agente em execução com diferentes cenários e algoritmos.
-
-Uso:
-    python main.py                  # Executa cenário padrão com A*
-    python main.py --scenario complex  # Cenário complexo
-    python main.py --algorithm ucs  # Usar Uniform Cost Search
-    python main.py --compare        # Comparar todos os algoritmos
-"""
+"""Ponto de entrada principal. Executa simulação ou compara algoritmos."""
 
 import sys
 import os
 import argparse
 import time
 
-# Configurar paths
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'aima-python'))
 sys.path.insert(0, os.path.dirname(__file__))
 
@@ -30,28 +17,11 @@ from problems.mine_problem import (MineRescueProblem, SingleMinerRescueProblem,
 
 
 def setup_default_scenario():
-    """
-    Configura o cenário padrão com 3 mineradores.
-
-    Mina com 3 níveis:
-    - Nível 0: Entrada (A), sala B, sala C
-    - Nível 1: sala D (elevador), E (inundado), F
-    - Nível 2: sala G (elevador), H (instável), I
-
-    Mineradores:
-    - Minerador P1 (alta prioridade, O2=15) na sala F (nível 1)
-    - Minerador P2 (média prioridade, O2=25) na sala I (nível 2)
-    - Minerador P3 (baixa prioridade, O2=30) na sala C (nível 0)
-
-    Colapsos:
-    - Túnel D-E colapsa no passo 12
-    - Túnel G-H colapsa no passo 18
-    """
+    """Cenário padrão: 3 mineradores, 3 níveis."""
     mine_graph, collapse_schedule = create_default_mine()
     env = MineEnvironment(mine_graph, collapse_schedule)
     env.max_steps = 60
 
-    # Adicionar mineradores
     miner1 = Miner(priority=1, oxygen=15)
     miner2 = Miner(priority=2, oxygen=25)
     miner3 = Miner(priority=3, oxygen=30)
@@ -64,41 +34,20 @@ def setup_default_scenario():
 
 
 def setup_complex_scenario():
-    """
-    Configura o cenário complexo com mais mineradores e rotas alternativas.
-
-    Mineradores:
-    - P1 (O2=10) na sala H (nível 2) — URGENTE
-    - P1 (O2=12) na sala K (nível 2) — URGENTE
-    - P2 (O2=20) na sala F (nível 1)
-    - P3 (O2=35) na sala E (nível 1)
-    """
+    """Cenário complexo: 4 mineradores, rotas alternativas com custos diferentes."""
     mine_graph, collapse_schedule = create_complex_mine()
     env = MineEnvironment(mine_graph, collapse_schedule)
     env.max_steps = 80
 
-    env.add_thing(Miner(priority=1, oxygen=10), location=(2, 'H'))
-    env.add_thing(Miner(priority=1, oxygen=12), location=(2, 'K'))
-    env.add_thing(Miner(priority=2, oxygen=20), location=(1, 'F'))
+    env.add_thing(Miner(priority=1, oxygen=6),  location=(1, 'F'))
+    env.add_thing(Miner(priority=1, oxygen=12), location=(2, 'H'))
+    env.add_thing(Miner(priority=2, oxygen=20), location=(2, 'K'))
     env.add_thing(Miner(priority=3, oxygen=35), location=(1, 'E'))
 
     return env
 
 
 def run_simulation(env, algorithm='astar', battery=50, verbose=True):
-    """
-    Executa uma simulação completa.
-
-    Args:
-        env: MineEnvironment configurado
-        algorithm: Algoritmo de busca ('astar', 'ucs', 'greedy', 'bfs')
-        battery: Bateria inicial do robô
-        verbose: Se True, exibe render() a cada passo
-
-    Returns:
-        dict com resultados da simulação
-    """
-    # Criar agente
     robot = create_rescue_agent(env, search_algorithm=algorithm, battery=battery)
     env.add_thing(robot, location=(0, 'A'))
 
@@ -109,7 +58,6 @@ def run_simulation(env, algorithm='astar', battery=50, verbose=True):
         print(f"{'#' * 60}")
         env.render()
 
-    # Executar simulação passo a passo
     start_time = time.time()
 
     while not env.is_done():
@@ -120,7 +68,6 @@ def run_simulation(env, algorithm='astar', battery=50, verbose=True):
 
     elapsed = time.time() - start_time
 
-    # Coletar resultados
     rescued = [t for t in env.things if isinstance(t, Miner) and t.rescued]
     dead = [t for t in env.things
             if isinstance(t, Miner) and not t.alive and not t.rescued]
@@ -162,9 +109,6 @@ def run_simulation(env, algorithm='astar', battery=50, verbose=True):
 
 
 def compare_algorithms(scenario='default'):
-    """
-    Compara todos os algoritmos de busca no mesmo cenário.
-    """
     algorithms = ['astar', 'ucs', 'greedy', 'bfs']
 
     print(f"\n{'#' * 70}")
@@ -174,7 +118,6 @@ def compare_algorithms(scenario='default'):
     all_results = []
 
     for algo in algorithms:
-        # Recriar ambiente para cada algoritmo (estado limpo)
         if scenario == 'complex':
             env = setup_complex_scenario()
         else:
@@ -185,23 +128,41 @@ def compare_algorithms(scenario='default'):
         all_results.append(results)
 
     # Tabela comparativa
-    print(f"\n{'=' * 70}")
+    battery_initial = 50
+    print(f"\n{'=' * 80}")
     print(f"  {'Algoritmo':<12} {'Resgatados':<12} {'Mortos':<8} "
-          f"{'Perf.':<10} {'Bateria':<10} {'Passos':<8} {'Buscas':<8}")
-    print(f"  {'-' * 64}")
+          f"{'Perf.':<10} {'Bat.Rest.':<10} {'Custo':<8} {'Passos':<8} {'NósExp.':<10}")
+    print(f"  {'-' * 76}")
 
     for r in all_results:
         stats = r['agent_stats']
+        path_cost = battery_initial - r['battery_remaining']
+        nodes_exp = stats.get('nodes_expanded', 'N/A')
         print(f"  {r['algorithm'].upper():<12} {r['rescued']:<12} {r['dead']:<8} "
               f"{r['performance']:<10} {r['battery_remaining']:<10} "
-              f"{r['steps']:<8} {stats.get('searches_performed', 'N/A'):<8}")
+              f"{path_cost:<8} {r['steps']:<8} {nodes_exp:<10}")
 
-    print(f"{'=' * 70}")
+    print(f"{'=' * 80}")
+    print(f"\n  Legenda:")
+    print(f"  Custo    = bateria consumida (menor = caminho mais eficiente)")
+    print(f"  NósExp.  = nós expandidos durante as buscas (menor = algoritmo mais eficiente)")
+    print(f"  A*/UCS   preferem custo mínimo; BFS prefere menos saltos (pode custar mais)")
+    print(f"  Greedy   segue a heurística; não garante otimalidade")
 
     # Identificar melhor
-    best = max(all_results, key=lambda r: (r['rescued'], r['performance']))
-    print(f"\n  Melhor algoritmo: {best['algorithm'].upper()}")
-    print(f"     Resgatados: {best['rescued']} | Performance: {best['performance']}")
+    best_perf = max(all_results, key=lambda r: (r['rescued'], r['performance']))
+    least_cost = min(all_results, key=lambda r: r['battery_remaining'] and
+                     (50 - r['battery_remaining']))
+    least_nodes = min(all_results,
+                      key=lambda r: r['agent_stats'].get('nodes_expanded', 9999))
+
+    print(f"\n  Análise de tradeoffs:")
+    print(f"  Melhor performance  : {best_perf['algorithm'].upper()}"
+          f" (resgatados={best_perf['rescued']}, perf={best_perf['performance']})")
+    print(f"  Menor custo (bateria): {min(all_results, key=lambda r: 50-r['battery_remaining'])['algorithm'].upper()}"
+          f" (custo={50-min(all_results, key=lambda r: 50-r['battery_remaining'])['battery_remaining']})")
+    print(f"  Menos nós expandidos: {least_nodes['algorithm'].upper()}"
+          f" (nós={least_nodes['agent_stats'].get('nodes_expanded', 'N/A')})")
 
     return all_results
 

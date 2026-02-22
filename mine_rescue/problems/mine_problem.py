@@ -1,41 +1,9 @@
 """
-Problema de Resgate em Mina Subterrânea
-========================================
+Problemas de busca para resgate em mina.
+Subclasses de Problem (aima-python/search.py).
 
-Especificação Formal (conforme AIMA):
-
-1. REPRESENTAÇÃO DOS ESTADOS:
-   Estado = (posição_agente, frozenset(mineradores_resgatados), bateria, step)
-   - posição_agente: tupla (nível, identificador) ex: (0, 'A')
-   - mineradores_resgatados: conjunto imutável de localizações já resgatadas
-   - bateria: int, energia restante do robô
-   - step: int, passo atual (para calcular colapsos)
-
-2. ESTADO INICIAL:
-   (posição_entrada, frozenset(), bateria_inicial, 0)
-   O agente começa na entrada da mina com bateria cheia e nenhum resgate.
-
-3. CONJUNTO DE AÇÕES:
-   - ('move', destino): Mover para nó adjacente via túnel não colapsado
-   - ('rescue',): Resgatar minerador(es) na posição atual
-   Ações são determinadas dinamicamente com base no estado atual.
-
-4. MODELO DE TRANSIÇÃO - result(s, a):
-   - move: atualiza posição, reduz bateria pelo custo do túnel, incrementa step
-   - rescue: adiciona localização aos resgatados, reduz bateria em 1
-
-5. TESTE DE OBJETIVO - goal_test(s):
-   Todos os mineradores-alvo foram resgatados (target set ⊆ rescued set)
-
-6. CUSTO DE CAMINHO - path_cost:
-   Soma dos custos dos túneis percorridos + custos de resgate.
-   Custos variam por tipo de túnel (normal=1, estreito=2, inundado=3, instável=4, elevador=2).
-
-7. HEURÍSTICA h(n):
-   h(n) = custo estimado mínimo para resgatar todos os mineradores restantes.
-   Usa a distância Manhattan 3D adaptada ao grafo + penalidade por prioridade.
-   - Admissível: h(n) ≤ custo real porque usa o mínimo custo possível por aresta (1).
-   - Consistente: h(n) ≤ c(n,a,n') + h(n') pois a redução é limitada pelo custo da aresta.
+Estado = (posição, resgatados, bateria, step)
+Ações = ('move', destino) | ('rescue',)
 """
 
 import sys
@@ -50,42 +18,20 @@ from search import Problem, Node, astar_search, breadth_first_graph_search, \
 
 
 class MineRescueProblem(Problem):
-    """
-    Problema de busca para resgate em mina subterrânea.
-
-    Subclasse de Problem (aima-python/search.py).
-
-    O estado é representado como uma tupla:
-        (posição, frozenset(resgatados), bateria, step)
-
-    O goal é o conjunto de mineradores que devem ser resgatados.
-    """
+    """Problema de busca multi-objetivo: resgatar todos os mineradores."""
 
     def __init__(self, initial_location, miner_targets, environment,
                  battery, current_step=0):
-        """
-        Args:
-            initial_location: Posição inicial do agente (nível, id)
-            miner_targets: Lista de posições dos mineradores-alvo
-            environment: Referência ao MineEnvironment para consultar o grafo
-            battery: Bateria disponível
-            current_step: Passo atual do ambiente
-        """
         self.env = environment
         self.miner_targets = frozenset(miner_targets)
 
-        # Estado: (posição, resgatados, bateria, step)
         initial_state = (initial_location, frozenset(), battery, current_step)
-
         super().__init__(initial=initial_state, goal=self.miner_targets)
-
-        # Pré-calcular distâncias mínimas (BFS) para cada nó
         self._distance_cache = {}
         self._precompute_distances()
 
     def _precompute_distances(self):
-        """Pré-calcula distâncias mínimas (em custo) entre todos os pares de nós
-        usando BFS ponderado (Dijkstra simplificado)."""
+        """Dijkstra para pré-calcular distâncias mínimas entre todos os nós."""
         all_nodes = self.env.get_all_nodes()
         for source in all_nodes:
             distances = {source: 0}
@@ -110,33 +56,23 @@ class MineRescueProblem(Problem):
         return float('inf')
 
     def actions(self, state):
-        """
-        Retorna as ações possíveis no estado atual.
-
-        Mapeamento para o código:
-        - Consulta os túneis não colapsados no passo atual
-        - Verifica se há mineradores para resgatar na posição
-        - Filtra ações inviáveis (bateria insuficiente)
-        """
+        """Ações possíveis: mover por túneis disponíveis ou resgatar."""
         position, rescued, battery, step = state
 
         possible_actions = []
 
-        # Verificar quais túneis estão disponíveis no step atual
         for neighbor in self.env.adjacency.get(position, []):
             tunnel = self.env.tunnels.get((position, neighbor))
             if tunnel is None:
                 continue
 
-            # Verificar se colapsou neste step
             collapse_step = self.env.collapse_schedule.get((position, neighbor))
             if collapse_step is not None and step >= collapse_step:
-                continue  # Túnel colapsado
+                continue
 
             if not tunnel.collapsed and tunnel.cost <= battery:
                 possible_actions.append(('move', neighbor))
 
-        # Verificar se há mineradores para resgatar na posição atual
         unresc_miners = self.miner_targets - rescued
         if position in unresc_miners and battery >= 1:
             possible_actions.append(('rescue',))
@@ -144,13 +80,7 @@ class MineRescueProblem(Problem):
         return possible_actions
 
     def result(self, state, action):
-        """
-        Modelo de transição: result(s, a) → s'
-
-        Mapeamento para o código:
-        - ('move', destino): atualiza posição e reduz bateria
-        - ('rescue',): adiciona localização aos resgatados
-        """
+        """Transição: move atualiza posição/bateria, rescue adiciona aos resgatados."""
         position, rescued, battery, step = state
 
         if action[0] == 'move':
@@ -168,22 +98,12 @@ class MineRescueProblem(Problem):
         return state
 
     def goal_test(self, state):
-        """
-        Teste de objetivo:
-        Todos os mineradores-alvo foram resgatados.
-
-        Mapeamento: verifica se o conjunto de resgatados contém todos os alvos.
-        """
+        """Verifica se todos os alvos foram resgatados."""
         _, rescued, _, _ = state
         return self.miner_targets.issubset(rescued)
 
     def path_cost(self, c, state1, action, state2):
-        """
-        Custo de caminho:
-        Soma o custo real da ação (custo do túnel ou custo de resgate).
-
-        Mapeamento: consulta o custo do túnel no grafo do ambiente.
-        """
+        """Soma custo do túnel (ou 1 para resgate) ao custo acumulado."""
         if action[0] == 'move':
             position = state1[0]
             destination = action[1]
@@ -194,37 +114,15 @@ class MineRescueProblem(Problem):
         return c + 1
 
     def h(self, node):
-        """
-        Heurística para busca informada (A*, Greedy).
-
-        h(n) = soma das distâncias mínimas do agente até cada minerador
-               não resgatado, considerando custos reais dos túneis.
-
-        Na verdade usamos: distância ao minerador mais distante não resgatado
-        (admissível, pois é <= custo real de visitar todos).
-
-        Admissibilidade:
-        - Usa distâncias mínimas pré-calculadas (Dijkstra)
-        - Nunca superestima porque o agente precisa ao menos percorrer
-          a distância até o minerador mais distante
-
-        Consistência:
-        - h(n) - h(n') ≤ c(n, a, n') é satisfeita porque a distância
-          diminui em no máximo o custo da aresta percorrida.
-
-        Mapeamento: implementada como método h(node) da subclasse Problem,
-        chamada automaticamente por astar_search.
-        """
+        """Heurística: distância Dijkstra ao minerador mais distante. Admissível e consistente."""
         state = node.state
         position, rescued, battery, step = state
 
-        # Mineradores ainda não resgatados
         remaining = self.miner_targets - rescued
 
         if not remaining:
             return 0
 
-        # Distância mínima ao minerador mais distante (admissível)
         max_dist = 0
         for miner_loc in remaining:
             dist = self._min_distance(position, miner_loc)
@@ -235,16 +133,7 @@ class MineRescueProblem(Problem):
 
 
 class MineRescueMultiProblem(Problem):
-    """
-    Variante do problema que formula o resgate de múltiplos mineradores
-    usando uma heurística MST (Minimum Spanning Tree) mais sofisticada.
-
-    A heurística MST é mais informada: estima o custo mínimo de visitar
-    todos os mineradores restantes como o custo de uma árvore geradora
-    mínima sobre os nós {agente} ∪ {mineradores não resgatados}.
-
-    Admissível: o custo da MST é um limite inferior do tour ótimo.
-    """
+    """Variante com heurística MST para múltiplos mineradores."""
 
     def __init__(self, initial_location, miner_targets, environment,
                  battery, current_step=0):
@@ -258,7 +147,6 @@ class MineRescueMultiProblem(Problem):
         self._precompute_distances()
 
     def _precompute_distances(self):
-        """Dijkstra para todos os nós."""
         all_nodes = self.env.get_all_nodes()
         for source in all_nodes:
             distances = {source: 0}
@@ -330,15 +218,7 @@ class MineRescueMultiProblem(Problem):
         return c + 1
 
     def h(self, node):
-        """
-        Heurística MST (Minimum Spanning Tree).
-
-        Calcula o custo da árvore geradora mínima sobre o conjunto
-        {posição_atual} ∪ {mineradores não resgatados}.
-
-        Admissível: MST ≤ custo ótimo do tour (TSP).
-        Consistente: redução do MST ao mover ≤ custo da aresta.
-        """
+        """Heurística MST: custo da árvore geradora mínima sobre os nós restantes."""
         state = node.state
         position, rescued, battery, step = state
         remaining = self.miner_targets - rescued
@@ -346,13 +226,11 @@ class MineRescueMultiProblem(Problem):
         if not remaining:
             return 0
 
-        # Nós relevantes: posição atual + mineradores restantes
         nodes = [position] + list(remaining)
 
         if len(nodes) <= 1:
             return 0
 
-        # Prim's MST
         import heapq
         in_mst = {nodes[0]}
         edges = []
@@ -376,13 +254,7 @@ class MineRescueMultiProblem(Problem):
 
 
 class SingleMinerRescueProblem(Problem):
-    """
-    Problema simplificado: resgatar UM minerador específico.
-    Usado quando o agente decide ir até um minerador de cada vez.
-
-    Estado: (posição, bateria, step)
-    Goal: posição do minerador-alvo
-    """
+    """Busca caminho até um único minerador. Estado: (posição, bateria, step)."""
 
     def __init__(self, initial_location, target_location, environment,
                  battery, current_step=0):
@@ -456,10 +328,7 @@ class SingleMinerRescueProblem(Problem):
         return c + 1
 
     def h(self, node):
-        """
-        Heurística: distância mínima pré-calculada até o alvo.
-        Admissível e consistente (distâncias reais do grafo).
-        """
+        """Distância Dijkstra até o alvo (admissível e consistente)."""
         state = node.state
         position = state[0]
         return self._min_distance(position, self.target)
